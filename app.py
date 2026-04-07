@@ -3,34 +3,73 @@ import plotly.graph_objects as go
 import pandas as pd
 
 # --- CONFIGURAZIONE PAGINA ---
-st.set_page_config(page_title="Cast Film Multilayer Comparator", layout="wide")
+st.set_page_config(page_title="Cast Film ROI Advisor", layout="wide")
 
-# --- TRADUZIONI E STILI ---
-t = {
-    "title": "Stima ROI: Linea CAST Multistrato High-Performance",
-    "sidebar": "Parametri Globali & Costi Materie",
-    "recipe_title": "Configurazione Ricetta (Set-point)",
-    "accuracy_label": "Accuratezza Dosaggio (Oversizing %)",
-    "result_title": "Analisi Economica Comparativa",
-    "annual_save": "Risparmio Totale Annuo",
+# --- DIZIONARIO TRADUZIONI ---
+lang_dict = {
+    "Italiano": {
+        "title": "Stima ROI: Linea CAST Multistrato High-Performance",
+        "sidebar_mats": "Costi Materie Prime (€/kg)",
+        "sidebar_utils": "Parametri Globali & Utility",
+        "recipe_title": "🧪 Configurazione Ricetta (Set-point)",
+        "accuracy_label": "Accuratezza Dosaggio (Oversizing %)",
+        "line_std": "Linea CAST Standard",
+        "line_pre": "Linea CAST High-Perf",
+        "res_title": "🏁 Analisi Economica Comparativa",
+        "ann_save": "Risparmio Totale Annuo",
+        "cost_kg": "Costo Unitario (€/kg)",
+        "chart_cost": "Composizione Costo Variabile (€/kg Film)",
+        "chart_roi": "Recupero Extra-Prezzo Linea Premium",
+        "table_prod": "Produzione Annua (kg)",
+        "table_mat": "Costo Materia Prima (€/anno)",
+        "table_ene": "Costo Energia (€/anno)",
+        "table_tot": "COSTO TOTALE VARIABILE (€/anno)",
+        "payback": "Payback Extra-Investimento",
+        "saving_kg": "Risparmio al kg"
+    },
+    "English": {
+        "title": "ROI Estimate: High-Performance Multilayer CAST Line",
+        "sidebar_mats": "Raw Material Costs (€/kg)",
+        "sidebar_utils": "Global Parameters & Utilities",
+        "recipe_title": "🧪 Recipe Configuration (Set-point)",
+        "accuracy_label": "Dosing Accuracy (Oversizing %)",
+        "line_std": "Standard CAST Line",
+        "line_pre": "High-Perf CAST Line",
+        "res_title": "🏁 Comparative Economic Analysis",
+        "ann_save": "Total Annual Saving",
+        "cost_kg": "Unit Cost (€/kg)",
+        "chart_cost": "Variable Cost Breakdown (€/kg Film)",
+        "chart_roi": "Premium Line Extra-Price Recovery",
+        "table_prod": "Annual Production (kg)",
+        "table_mat": "Raw Material Cost (€/year)",
+        "table_ene": "Energy Cost (€/year)",
+        "table_tot": "TOTAL VARIABLE COST (€/year)",
+        "payback": "Extra-Investment Payback",
+        "saving_kg": "Saving per kg"
+    }
 }
 
+# Selezione Lingua
+if 'lang' not in st.sidebar:
+    lang = st.sidebar.selectbox("Language / Lingua", ["Italiano", "English"])
+t = lang_dict[lang]
+
 # --- SIDEBAR: COSTI MATERIE PRIME ---
-st.sidebar.header(f"💰 {t['sidebar']}")
-c_pe = st.sidebar.number_input("Costo PE (€/kg)", value=1.30, step=0.05)
-c_pa = st.sidebar.number_input("Costo PA (€/kg)", value=3.50, step=0.10)
-c_evoh = st.sidebar.number_input("Costo EVOH (€/kg)", value=8.50, step=0.20)
-c_tie = st.sidebar.number_input("Costo TIE (Adesivo) (€/kg)", value=2.80, step=0.10)
+st.sidebar.header(t["sidebar_mats"])
+c_pe = st.sidebar.number_input("PE (€/kg)", value=1.30)
+c_pa = st.sidebar.number_input("PA (€/kg)", value=3.50)
+c_evoh = st.sidebar.number_input("EVOH (€/kg)", value=8.50)
+c_tie = st.sidebar.number_input("TIE (€/kg)", value=2.80)
 
 st.sidebar.markdown("---")
-c_ene = st.sidebar.number_input("Costo Energia (€/kWh)", value=0.22)
-h_an = st.sidebar.number_input("Ore Produzione Annue", value=7500)
+st.sidebar.header(t["sidebar_utils"])
+c_ene = st.sidebar.number_input("Energy Cost (€/kWh)", value=0.22)
+h_an = st.sidebar.number_input("Working Hours/Year", value=7500)
 
-# --- CORPO PRINCIPALE: DEFINIZIONE RICETTA ---
+# --- CORPO PRINCIPALE: RICETTA ---
 st.title(t["title"])
-st.markdown("---")
+st.subheader(t["recipe_title"])
 
-st.subheader(f"🧪 {t['recipe_title']}")
 col_r1, col_r2, col_r3, col_r4 = st.columns(4)
 with col_r1:
     p_pe = st.number_input("% PE", 0, 100, 60)
@@ -41,12 +80,7 @@ with col_r3:
 with col_r4:
     p_tie = st.number_input("% TIE", 0, 100, 10)
 
-# Validazione Ricetta
-total_p = p_pe + p_pa + p_evoh + p_tie
-if total_p != 100:
-    st.error(f"Attenzione: La somma delle percentuali è {total_p}%. Deve essere 100%.")
-
-# Calcolo Costo Teorico Ricetta (€/kg)
+# Calcolo Costo Teorico Ricetta
 theoretical_cost_kg = (p_pe*c_pe + p_pa*c_pa + p_evoh*c_evoh + p_tie*c_tie) / 100
 
 # --- COMPARAZIONE LINEE ---
@@ -54,76 +88,69 @@ st.markdown("---")
 col_l, col_r = st.columns(2)
 
 with col_l:
-    st.subheader("🔄 Linea CAST Standard")
-    ca = st.number_input("CAPEX Linea Standard (€)", value=1200000)
+    st.subheader(f"🔄 {t['line_std']}")
+    ca = st.number_input("CAPEX Standard (€)", value=1200000)
     seca = st.number_input("SEC Standard (kWh/kg)", value=0.55)
-    acca = st.slider("Oversizing Standard (%)", 2.0, 8.0, 5.0, help="Quanto materiale in più viene dosato per sicurezza a causa dell'instabilità")
-    output_a = st.number_input("Output Reale Standard (kg/h)", value=600)
+    acca = st.slider(f"{t['accuracy_label']} Std", 0.0, 10.0, 5.0)
+    out_a = st.number_input("Output Std (kg/h)", value=600)
 
 with col_r:
-    st.subheader("⚡ Linea CAST High-Perf")
-    cb = st.number_input("CAPEX Linea Premium (€)", value=1800000)
+    st.subheader(f"⚡ {t['line_pre']}")
+    cb = st.number_input("CAPEX Premium (€)", value=1800000)
     secb = st.number_input("SEC Premium (kWh/kg)", value=0.42)
-    accb = st.slider("Oversizing Premium (%)", 0.5, 4.0, 1.5, help="Maggiore precisione = minore spreco di materiali costosi")
-    output_b = st.number_input("Output Reale Premium (kg/h)", value=650)
+    accb = st.slider(f"{t['accuracy_label']} Premium", 0.0, 10.0, 1.5)
+    out_b = st.number_input("Output Premium (kg/h)", value=650)
 
-# --- CALCOLI FINANZIARI ---
-def calculate_line_performance(capex, sec, accuracy, hourly_output):
-    ann_prod_kg = hourly_output * h_an
-    # Costo materiale influenzato dall'accuratezza (più errore = più consumo)
-    real_material_cost_kg = theoretical_cost_kg * (1 + accuracy / 100)
-    ann_material_cost = ann_prod_kg * real_material_cost_kg
-    
-    ann_energy_cost = ann_prod_kg * sec * c_ene
-    
-    total_variable_cost = ann_material_cost + ann_energy_cost
-    cost_per_kg_produced = total_variable_cost / ann_prod_kg
-    
-    return ann_prod_kg, ann_material_cost, ann_energy_cost, total_variable_cost, cost_per_kg_produced
+# --- FUNZIONE CALCOLO ---
+def calc_perf(capex, sec, accuracy, output):
+    ann_kg = output * h_an
+    real_mat_cost_kg = theoretical_cost_kg * (1 + accuracy / 100)
+    ann_mat_cost = ann_kg * real_mat_cost_kg
+    ann_ene_cost = ann_kg * sec * c_ene
+    tot_var_cost = ann_mat_cost + ann_ene_cost
+    u_cost = tot_var_cost / ann_kg
+    return ann_kg, ann_mat_cost, ann_ene_cost, tot_var_cost, u_cost
 
-res_a = calculate_line_performance(ca, seca, acca, output_a)
-res_b = calculate_line_performance(cb, secb, accb, output_b)
+res_a = calc_perf(ca, seca, acca, out_a)
+res_b = calc_perf(cb, secb, accb, out_b)
 
-# --- DISPLAY RISULTATI ---
+# --- RISULTATI ---
 st.markdown("---")
-st.header(t["result_title"])
+st.header(t["res_title"])
+
+ann_save = (res_a[4] - res_b[4]) * res_b[0]
+extra_capex = cb - ca
+pb_extra = extra_capex / ann_save if ann_save > 0 else 0
 
 m1, m2, m3 = st.columns(3)
-annual_saving = (res_a[4] - res_b[4]) * res_b[0] # Risparmio basato sulla produzione della linea B
-extra_capex = cb - ca
-payback_extra = extra_capex / annual_saving if annual_saving > 0 else 0
-
-m1.metric("Risparmio al kg", f"€ {(res_a[4] - res_b[4]):.3f}")
-m2.metric(t["annual_save"], f"€ {annual_saving:,.0f}")
-m3.metric("Payback Extra-Investimento", f"{payback_extra:.2f} Anni")
+m1.metric(t["saving_kg"], f"€ {(res_a[4] - res_b[4]):.3f}")
+m2.metric(t["ann_save"], f"€ {ann_save:,.0f}")
+m3.metric(t["payback"], f"{pb_extra:.2f} Years/Anni")
 
 # --- GRAFICI ---
 c1, c2 = st.columns(2)
-
 with c1:
-    # Breakdown del costo al kg
     fig_cost = go.Figure(data=[
-        go.Bar(name='Materiale', x=['Standard', 'Premium'], y=[theoretical_cost_kg*(1+acca/100), theoretical_cost_kg*(1+accb/100)]),
-        go.Bar(name='Energia', x=['Standard', 'Premium'], y=[seca*c_ene, secb*c_ene])
+        go.Bar(name='Material', x=['Std', 'Premium'], y=[theoretical_cost_kg*(1+acca/100), theoretical_cost_kg*(1+accb/100)]),
+        go.Bar(name='Energy', x=['Std', 'Premium'], y=[seca*c_ene, secb*c_ene])
     ])
-    fig_cost.update_layout(barmode='stack', title="Composizione Costo Variabile (€/kg Film)")
+    fig_cost.update_layout(barmode='stack', title=t["chart_cost"])
     st.plotly_chart(fig_cost, use_container_width=True)
 
 with c2:
-    # Analisi del risparmio cumulativo
-    yrs = list(range(8))
-    cum_saving = [-extra_capex + (annual_saving * y) for y in yrs]
-    fig_savings = go.Figure()
-    fig_savings.add_trace(go.Scatter(x=yrs, y=cum_savings, fill='tozeroy', name="Net Saving", line=dict(color='green')))
-    fig_savings.add_hline(y=0, line_dash="dash", line_color="red")
-    fig_savings.update_layout(title="Recupero Extra-Prezzo Linea Premium", xaxis_title="Anni", yaxis_title="€")
-    st.plotly_chart(fig_savings, use_container_width=True)
+    yrs = list(range(9))
+    # CORREZIONE ERRORE: variabile chiamata coerentemente cum_saving
+    cum_saving = [-extra_capex + (ann_save * y) for y in yrs]
+    fig_roi = go.Figure()
+    fig_roi.add_trace(go.Scatter(x=yrs, y=cum_saving, fill='tozeroy', line=dict(color='green', width=4)))
+    fig_roi.add_hline(y=0, line_dash="dash", line_color="red")
+    fig_roi.update_layout(title=t["chart_roi"], xaxis_title="Years", yaxis_title="€")
+    st.plotly_chart(fig_roi, use_container_width=True)
 
-# --- TABELLA DETTAGLIATA ---
-st.subheader("Dettaglio Costi Annuali")
-data = {
-    "Descrizione": ["Produzione Annua (kg)", "Costo Materia Prima (€/anno)", "Costo Energia (€/anno)", "COSTO TOTALE VARIABILE (€/anno)", "COSTO UNITARIO (€/kg)"],
-    "Linea Standard": [f"{res_a[0]:,.0f}", f"€ {res_a[1]:,.0f}", f"€ {res_a[2]:,.0f}", f"€ {res_a[3]:,.0f}", f"€ {res_a[4]:.3f}"],
-    "Linea Premium": [f"{res_b[0]:,.0f}", f"€ {res_b[1]:,.0f}", f"€ {res_b[2]:,.0f}", f"€ {res_b[3]:,.0f}", f"€ {res_b[4]:.3f}"]
-}
-st.table(pd.DataFrame(data))
+# --- TABELLA ---
+df_res = pd.DataFrame({
+    "Description": [t["table_prod"], t["table_mat"], t["table_ene"], t["table_tot"], t["cost_kg"]],
+    "Standard": [f"{res_a[0]:,.0f}", f"€ {res_a[1]:,.0f}", f"€ {res_a[2]:,.0f}", f"€ {res_a[3]:,.0f}", f"€ {res_a[4]:.3f}"],
+    "Premium": [f"{res_b[0]:,.0f}", f"€ {res_b[1]:,.0f}", f"€ {res_b[2]:,.0f}", f"€ {res_b[3]:,.0f}", f"€ {res_b[4]:.3f}"]
+})
+st.table(df_res)
