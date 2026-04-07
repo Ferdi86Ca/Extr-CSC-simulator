@@ -18,15 +18,16 @@ lang_dict = {
         "ann_save": "Total Annual Saving",
         "cost_kg": "Unit Cost (€/kg)",
         "chart_cost": "Variable Cost Breakdown (€/kg Film)",
-        "chart_roi": "Premium Line Extra-Price Recovery",
+        "chart_roi": "Full Investment Payback (Cash Flow)",
         "table_prod": "Actual Annual Production (kg)",
         "table_mat": "Raw Material Cost (€/year)",
         "table_ene": "Energy Cost (€/year)",
         "table_tot": "TOTAL VARIABLE COST (€/year)",
-        "payback": "Extra-Investment Payback",
+        "payback": "Individual Line Payback",
         "saving_kg": "Saving per kg",
         "shared_output": "Nominal Hourly Output (kg/h)",
-        "oee_label": "OEE (Efficiency %)"
+        "oee_label": "OEE (Efficiency %)",
+        "margin_label": "Assumed Sales Margin (€/kg)"
     },
     "Italiano": {
         "title": "Stima ROI: Linea CAST Multistrato High-Performance",
@@ -39,15 +40,16 @@ lang_dict = {
         "ann_save": "Risparmio Totale Annuo",
         "cost_kg": "Costo Unitario (€/kg)",
         "chart_cost": "Composizione Costo Variabile (€/kg Film)",
-        "chart_roi": "Recupero Extra-Prezzo Linea Premium",
+        "chart_roi": "Payback Totale Investimento (Cash Flow)",
         "table_prod": "Produzione Annua Reale (kg)",
         "table_mat": "Costo Materia Prima (€/anno)",
         "table_ene": "Costo Energia (€/anno)",
         "table_tot": "COSTO TOTALE VARIABILE (€/anno)",
-        "payback": "Payback Extra-Investimento",
+        "payback": "Payback Singola Linea",
         "saving_kg": "Risparmio al kg",
         "shared_output": "Portata Oraria Nominale (kg/h)",
-        "oee_label": "OEE (Efficienza %)"
+        "oee_label": "OEE (Efficienza %)",
+        "margin_label": "Margine di Vendita Ipotizzato (€/kg)"
     }
 }
 
@@ -63,7 +65,7 @@ selected_lang = st.sidebar.selectbox(
 st.session_state['lang'] = selected_lang
 t = lang_dict[st.session_state['lang']]
 
-# --- SIDEBAR: RAW MATERIAL COSTS ---
+# --- SIDEBAR: COSTS & UTILITIES ---
 st.sidebar.header(t["sidebar_mats"])
 c_pe = st.sidebar.number_input("PE (€/kg)", value=1.35, step=0.05)
 c_pa = st.sidebar.number_input("PA (€/kg)", value=3.60, step=0.10)
@@ -73,9 +75,11 @@ c_tie = st.sidebar.number_input("TIE (€/kg)", value=2.90, step=0.10)
 st.sidebar.markdown("---")
 st.sidebar.header(t["sidebar_utils"])
 c_ene = st.sidebar.number_input("Energy Cost (€/kWh)", value=0.22, step=0.01)
-h_an = st.sidebar.number_input("Available Production Hours/Year", value=7500, step=100)
+h_an = st.sidebar.number_input("Available Hours/Year", value=7500, step=100)
+# Added a margin to calculate a realistic payback on the whole machine
+margin_fixed = st.sidebar.number_input(t["margin_label"], value=0.50, step=0.05, help="Difference between sales price and total production cost")
 
-# --- MAIN BODY: SHARED PARAMETERS ---
+# --- MAIN BODY ---
 st.title(t["title"])
 st.markdown("---")
 col_top1, col_top2 = st.columns(2)
@@ -84,81 +88,64 @@ with col_top1:
 with col_top2:
     sec_shared = st.number_input("Shared Energy Consumption (kWh/kg)", value=0.45, format="%.2f")
 
-# --- RECIPE COMPARISON ROWS ---
+# --- RECIPE & OEE COMPARISON ---
 st.subheader(t["recipe_title"])
 
-# Standard Line Recipe & OEE
+# Standard Line
 st.markdown(f"#### 🔄 {t['line_std']}")
-rs1, rs2, rs3, rs4, rs5, rs6 = st.columns(6)
-with rs1: p_pe_a = st.number_input("% PE (Std)", 0, 100, 60, key="pe_a")
-with rs2: p_pa_a = st.number_input("% PA (Std)", 0, 100, 20, key="pa_a")
-with rs3: p_evoh_a = st.number_input("% EVOH (Std)", 0, 100, 10, key="evoh_a")
-with rs4: p_tie_a = st.number_input("% TIE (Std)", 0, 100, 10, key="tie_a")
-with rs5: oee_a = st.slider(f"{t['oee_label']} Std", 50, 100, 80, key="oee_a")
-with rs6: 
-    total_a = p_pe_a + p_pa_a + p_evoh_a + p_tie_a
-    st.metric("Total Std", f"{total_a}%")
+rs = st.columns(6)
+p_pe_a = rs[0].number_input("% PE (Std)", 0, 100, 60, key="pe_a")
+p_pa_a = rs[1].number_input("% PA (Std)", 0, 100, 20, key="pa_a")
+p_evoh_a = rs[2].number_input("% EVOH (Std)", 0, 100, 10, key="evoh_a")
+p_tie_a = rs[3].number_input("% TIE (Std)", 0, 100, 10, key="tie_a")
+oee_a = rs[4].slider(f"{t['oee_label']} Std", 50, 100, 80, key="oee_a")
+total_a = p_pe_a + p_pa_a + p_evoh_a + p_tie_a
+rs[5].metric("Total Std", f"{total_a}%")
 
-# Premium Line Recipe & OEE
+# Premium Line
 st.markdown(f"#### ⚡ {t['line_pre']}")
-rp1, rp2, rp3, rp4, rp5, rp6 = st.columns(6)
-with rp1: p_pe_b = st.number_input("% PE (Pre)", 0, 100, 65, key="pe_b")
-with rp2: p_pa_b = st.number_input("% PA (Pre)", 0, 100, 18, key="pa_b")
-with rp3: p_evoh_b = st.number_input("% EVOH (Pre)", 0, 100, 9, key="evoh_b")
-with rp4: p_tie_b = st.number_input("% TIE (Pre)", 0, 100, 8, key="tie_b")
-with rp5: oee_b = st.slider(f"{t['oee_label']} Premium", 50, 100, 88, key="oee_b")
-with rp6: 
-    total_b = p_pe_b + p_pa_b + p_evoh_b + p_tie_b
-    st.metric("Total Pre", f"{total_b}%")
+rp = st.columns(6)
+p_pe_b = rp[0].number_input("% PE (Pre)", 0, 100, 65, key="pe_b")
+p_pa_b = rp[1].number_input("% PA (Pre)", 0, 100, 18, key="pa_b")
+p_evoh_b = rp[2].number_input("% EVOH (Pre)", 0, 100, 9, key="evoh_b")
+p_tie_b = rp[3].number_input("% TIE (Pre)", 0, 100, 8, key="tie_b")
+oee_b = rp[4].slider(f"{t['oee_label']} Premium", 50, 100, 88, key="oee_b")
+total_b = p_pe_b + p_pa_b + p_evoh_b + p_tie_b
+rp[5].metric("Total Pre", f"{total_b}%")
 
-if total_a != 100 or total_b != 100:
-    st.warning("⚠️ Warning: One of the recipes does not sum to 100%!")
-
-# --- CAPEX INPUTS ---
+# --- CAPEX ---
 st.markdown("---")
 col_c1, col_c2 = st.columns(2)
-with col_c1:
-    ca = st.number_input("CAPEX Standard Line (€)", value=4000000, step=100000)
-with col_c2:
-    cb = st.number_input("CAPEX Premium Line (€)", value=4000000, step=100000)
+ca = col_c1.number_input("CAPEX Standard Line (€)", value=4000000, step=100000)
+cb = col_c2.number_input("CAPEX Premium Line (€)", value=4000000, step=100000)
 
 # --- CALCULATIONS ---
 def calc_economics(capex, pe, pa, evoh, tie, oee):
-    # OEE reduces the total actual kg produced per year
-    actual_ann_kg = p_shared * h_an * (oee / 100)
-    
-    # Unit material cost based on specific recipe
+    ann_kg = p_shared * h_an * (oee / 100)
     u_mat_cost = (pe*c_pe + pa*c_pa + evoh*c_evoh + tie*c_tie) / 100
-    ann_mat_cost = actual_ann_kg * u_mat_cost
-    
-    # Energy is consumed on actual production
-    ann_ene_cost = actual_ann_kg * sec_shared * c_ene
-    
+    ann_mat_cost = ann_kg * u_mat_cost
+    ann_ene_cost = ann_kg * sec_shared * c_ene
     tot_var_cost = ann_mat_cost + ann_ene_cost
-    u_cost = tot_var_cost / actual_ann_kg if actual_ann_kg > 0 else 0
-    
-    return actual_ann_kg, ann_mat_cost, ann_ene_cost, tot_var_cost, u_cost
+    u_cost = tot_var_cost / ann_kg if ann_kg > 0 else 0
+    # Annual profit for payback calculation
+    ann_profit = ann_kg * margin_fixed 
+    return ann_kg, ann_mat_cost, ann_ene_cost, tot_var_cost, u_cost, ann_profit
 
 res_a = calc_economics(ca, p_pe_a, p_pa_a, p_evoh_a, p_tie_a, oee_a)
 res_b = calc_economics(cb, p_pe_b, p_pa_b, p_evoh_b, p_tie_b, oee_b)
 
+ann_save = (res_a[4] - res_b[4]) * res_b[0]
+
 # --- RESULTS ---
 st.markdown("---")
 st.header(t["res_title"])
-
-# Saving calculation: Comparing the cost of the Premium production vs what it would have costed on the Std line
-ann_save = (res_a[4] - res_b[4]) * res_b[0]
-extra_capex = cb - ca
-# If CAPEX is same, payback is instant or non-applicable as it's a pure saving from day 1
-pb_extra = extra_capex / ann_save if (ann_save > 0 and extra_capex > 0) else 0
-
 m1, m2, m3 = st.columns(3)
 m1.metric(t["saving_kg"], f"€ {(res_a[4] - res_b[4]):.3f}")
 m2.metric(t["ann_save"], f"€ {ann_save:,.0f}")
-if extra_capex > 0:
-    m3.metric(t["payback"], f"{pb_extra:.2f} { 'Years' if st.session_state['lang'] == 'English' else 'Anni'}")
-else:
-    m3.metric(t["payback"], "0.00 (Same CAPEX)")
+# Individual payback calculation based on Margin + Operational Savings
+pb_a = ca / res_a[5] if res_a[5] > 0 else 0
+pb_b = cb / (res_b[5] + ann_save) if (res_b[5] + ann_save) > 0 else 0
+m3.metric(t["payback"] + " (Premium)", f"{pb_b:.2f} Years")
 
 # --- CHARTS ---
 c1, c2 = st.columns(2)
@@ -171,13 +158,19 @@ with c1:
     st.plotly_chart(fig_cost, use_container_width=True)
 
 with c2:
-    yrs = list(range(11))
-    cum_saving = [-extra_capex + (ann_save * y) for y in yrs]
-    fig_roi = go.Figure()
-    fig_roi.add_trace(go.Scatter(x=yrs, y=cum_saving, fill='tozeroy', line=dict(color='#00CC96', width=4)))
-    fig_roi.add_hline(y=0, line_dash="dash", line_color="black")
-    fig_roi.update_layout(title=t["chart_roi"], xaxis_title="Years", yaxis_title="€")
-    st.plotly_chart(fig_roi, use_container_width=True)
+    # COMPARATIVE PAYBACK CHART
+    yrs = [i/2 for i in range(21)] # 0 to 10 years with 6-month steps
+    # Profit A = Production A * Margin
+    # Profit B = Production B * Margin + (Saving per kg * Production B)
+    cash_a = [-ca + (res_a[5] * y) for y in yrs]
+    cash_b = [-cb + ((res_b[5] + ann_save) * y) for y in yrs]
+    
+    fig_pay = go.Figure()
+    fig_pay.add_trace(go.Scatter(x=yrs, y=cash_a, name=t['line_std'], line=dict(color='grey', dash='dash')))
+    fig_pay.add_trace(go.Scatter(x=yrs, y=cash_b, name=t['line_pre'], line=dict(color='#00CC96', width=4)))
+    fig_pay.add_hline(y=0, line_dash="solid", line_color="black")
+    fig_pay.update_layout(title=t["chart_roi"], xaxis_title="Years", yaxis_title="€ Cash Flow", hovermode="x unified")
+    st.plotly_chart(fig_pay, use_container_width=True)
 
 # --- DATA TABLE ---
 df_res = pd.DataFrame({
